@@ -1,113 +1,122 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
+import { Part } from '@google/genai';
+import { useApiKey } from './hooks/useApiKey';
+import { useTranslation } from './hooks/useTranslation';
+import ApiKeyManager from './components/ApiKeyManager';
+import ImageSelector from './components/GalleryPanel';
 import InputPanel from './components/InputPanel';
 import ImageComparison from './components/ArchitectureDiagram';
+import { generateImage } from './services/geminiService';
+import { Logo } from './components/icons';
 import LanguageSwitcher from './components/LanguageSwitcher';
 import UserMenu from './components/UserMenu';
-import GalleryPanel from './components/GalleryPanel';
-// FIX: Import ApiKeyManager to handle API key input.
-import ApiKeyManager from './components/ApiKeyManager';
-import { GalleryIcon } from './components/icons';
-import { useTranslation } from './hooks/useTranslation';
-// FIX: Import useApiKey hook to manage the Gemini API key.
-import { useApiKey } from './hooks/useApiKey';
-import * as geminiService from './services/geminiService';
 
 const App: React.FC = () => {
-  const [originalImage, setOriginalImage] = useState<string | null>(null);
-  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
-  const { t } = useTranslation();
-  // FIX: Get the API key from the useApiKey hook.
-  const { apiKey } = useApiKey();
+    const [originalImage, setOriginalImage] = useState<string | null>(null);
+    const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const { apiKey } = useApiKey();
+    const { t } = useTranslation();
 
-  const handleImageSelect = (file: File) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setOriginalImage(reader.result as string);
-      setGeneratedImage(null); // Clear previous generation
-    };
-    reader.readAsDataURL(file);
-  };
+    const handleImageSelected = useCallback(async (image: File | string) => {
+        setError(null);
+        setGeneratedImage(null);
 
-  // FIX: Update handleGenerate to check for and pass the API key to the service.
-  const handleGenerate = async (prompt: string, image: { data: string; mimeType: string }) => {
+        if (typeof image === 'string') { // Gallery image URL
+            setOriginalImage(image);
+        } else { // Uploaded file
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const url = reader.result as string;
+                setOriginalImage(url);
+            };
+            reader.readAsDataURL(image);
+        }
+    }, []);
+
+    const handleGenerate = useCallback(async (prompt: string, image: { data: string; mimeType: string }) => {
+        if (!apiKey) {
+            setError("API key is not configured.");
+            return;
+        }
+
+        setIsLoading(true);
+        setError(null);
+        setGeneratedImage(null);
+
+        try {
+            const imagePart: Part = {
+                inlineData: {
+                    data: image.data,
+                    mimeType: image.mimeType,
+                },
+            };
+            const resultBase64 = await generateImage(apiKey, prompt, imagePart);
+            if (resultBase64) {
+                setGeneratedImage(`data:image/png;base64,${resultBase64}`);
+            } else {
+                setError("The model did not return an image. Please try a different prompt.");
+            }
+        } catch (e: any) {
+            setError(e.message || "An unknown error occurred during image generation.");
+        } finally {
+            setIsLoading(false);
+        }
+    }, [apiKey]);
+
     if (!apiKey) {
-        setError("API Key is not set.");
-        return;
+        return <ApiKeyManager />;
     }
-    setIsLoading(true);
-    setError(null);
-    setGeneratedImage(null);
-    try {
-      const newImageBase64 = await geminiService.generateImage(apiKey, prompt, image);
-      if (newImageBase64) {
-        setGeneratedImage(`data:image/png;base64,${newImageBase64}`);
-      } else {
-        setError('The model did not return an image. Please try again.');
-      }
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
-  return (
-    <>
-      {/* FIX: Conditionally render the ApiKeyManager modal if no key is set. */}
-      {!apiKey && <ApiKeyManager />}
-      {/* FIX: Disable the main UI if the API key is not set. */}
-      <div className={`min-h-screen bg-slate-50 text-slate-800 font-sans ${!apiKey ? 'blur-sm pointer-events-none' : ''}`}>
-        <header className="bg-white/80 backdrop-blur-sm border-b border-slate-200 sticky top-0 z-10">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-16">
-              {/* Left side */}
-              <div className="flex items-center gap-4">
-                  <div className="flex-shrink-0">
-                    <svg className="w-8 h-8 text-cyan-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L1 21h22L12 2zm0 4.6L17.6 19H6.4L12 6.6z"></path></svg>
-                  </div>
-                  <h1 className="text-xl font-bold text-slate-800">{t('header_title')}</h1>
-              </div>
-              
-              {/* Right side */}
-              <div className="flex items-center gap-4">
-                  <button onClick={() => setIsGalleryOpen(true)} className="flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-cyan-500 transition-colors p-2 rounded-md hover:bg-slate-100">
-                      <GalleryIcon className="w-5 h-5"/>
-                      <span className="hidden md:block">{t('gallery_button')}</span>
-                  </button>
-                  <LanguageSwitcher />
-                  <UserMenu />
-              </div>
-            </div>
-          </div>
-        </header>
-
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex flex-col md:flex-row gap-8">
-            <InputPanel
-              onGenerate={handleGenerate}
-              onImageSelect={handleImageSelect}
-              isLoading={isLoading}
-              originalImage={originalImage}
-            />
-            <ImageComparison
-              originalImage={originalImage}
-              generatedImage={generatedImage}
-            />
-          </div>
-          {error && (
-              <div className="mt-4 p-4 bg-red-100 border border-red-200 text-red-800 rounded-md">
-                  <p><span className="font-bold">{t('error_title')}:</span> {error}</p>
-              </div>
-          )}
-        </main>
-
-        <GalleryPanel isOpen={isGalleryOpen} onClose={() => setIsGalleryOpen(false)} />
-      </div>
-    </>
-  );
+    return (
+        <div className="min-h-screen bg-slate-50 font-sans text-slate-800 flex flex-col">
+            <header className="bg-white/80 backdrop-blur-sm border-b border-slate-200 sticky top-0 z-40">
+                <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="flex items-center justify-between h-16">
+                        <div className="flex items-center gap-4">
+                            <Logo className="h-8 w-auto text-cyan-600" />
+                            <h1 className="text-lg font-bold text-slate-700 hidden sm:block">{t('app_title')}</h1>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <LanguageSwitcher />
+                            <UserMenu />
+                        </div>
+                    </div>
+                </div>
+            </header>
+            
+            <main className="flex-grow container mx-auto p-4 sm:p-6 lg:p-8">
+                {!originalImage ? (
+                    <div className="flex items-center justify-center h-full">
+                        <ImageSelector onImageSelected={handleImageSelected} />
+                    </div>
+                ) : (
+                    <div className="flex flex-col md:flex-row gap-8">
+                        <InputPanel 
+                            onGenerate={handleGenerate} 
+                            onImageSelect={handleImageSelected}
+                            isLoading={isLoading} 
+                            originalImage={originalImage}
+                        />
+                        <ImageComparison 
+                            originalImage={originalImage} 
+                            generatedImage={generatedImage}
+                        />
+                    </div>
+                )}
+                {error && (
+                    <div 
+                        className="fixed bottom-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg shadow-lg z-50 max-w-sm"
+                        role="alert"
+                    >
+                        <strong className="font-bold">{t('error_title')}</strong>
+                        <p className="block sm:inline ml-2">{error}</p>
+                    </div>
+                )}
+            </main>
+        </div>
+    );
 };
 
 export default App;

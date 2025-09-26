@@ -9,14 +9,6 @@ interface ImageComparisonProps {
 const ImageComparison: React.FC<ImageComparisonProps> = ({ originalImage, generatedImage }) => {
   const { t } = useTranslation();
 
-  if (!originalImage && !generatedImage) {
-    return (
-      <div className="flex-1 flex items-center justify-center text-slate-500 bg-slate-100 rounded-lg border border-slate-200">
-        <p>{t('comparison_placeholder')}</p>
-      </div>
-    );
-  }
-
   return (
     <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
       {/* Original Image */}

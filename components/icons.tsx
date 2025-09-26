@@ -1,5 +1,33 @@
 import React from 'react';
 
+export const Logo: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg
+    {...props}
+    viewBox="0 0 162 40"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      d="M20 0C8.954 0 0 8.954 0 20s8.954 20 20 20 20-8.954 20-20S31.046 0 20 0zm0 38C10.075 38 2 29.925 2 20S10.075 2 20 2s18 8.075 18 18-8.075 18-18 18z"
+      fill="currentColor"
+    />
+    <path
+      d="M20 10c-5.523 0-10 4.477-10 10s4.477 10 10 10 10-4.477 10-10-4.477-10-10-10zm0 18c-4.411 0-8-3.589-8-8s3.589-8 8-8 8 3.589 8 8-3.589 8-8 8z"
+      fill="currentColor"
+    />
+    <text
+      x="48"
+      y="27"
+      fontFamily="Inter, sans-serif"
+      fontSize="18"
+      fill="currentColor"
+    >
+      Virtual Architect Studio
+    </text>
+  </svg>
+);
+
+
 export const UploadIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   <svg
     {...props}

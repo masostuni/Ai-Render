@@ -1,7 +1,7 @@
-// FIX: Provide full implementation for the GalleryPanel component.
-import React from 'react';
+import React, { useCallback } from 'react';
+import { useDropzone } from 'react-dropzone';
 import { useTranslation } from '../hooks/useTranslation';
-import { CloseIcon } from './icons';
+import { UploadIcon } from './icons';
 
 const galleryItems = [
   { id: 1, src: 'https://storage.googleapis.com/gemini-ui-params/demo/img/gallery/modern_1.jpeg', alt: 'Modern living room' },
@@ -12,44 +12,70 @@ const galleryItems = [
   { id: 6, src: 'https://storage.googleapis.com/gemini-ui-params/demo/img/gallery/farmhouse_1.jpeg', alt: 'Farmhouse living room' },
 ];
 
-interface GalleryPanelProps {
-  isOpen: boolean;
-  onClose: () => void;
+interface ImageSelectorProps {
+  onImageSelected: (image: File | string) => void;
 }
 
-const GalleryPanel: React.FC<GalleryPanelProps> = ({ isOpen, onClose }) => {
+const ImageSelector: React.FC<ImageSelectorProps> = ({ onImageSelected }) => {
   const { t } = useTranslation();
 
-  if (!isOpen) {
-    return null;
-  }
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    if (acceptedFiles.length > 0) {
+      onImageSelected(acceptedFiles[0]);
+    }
+  }, [onImageSelected]);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: { 'image/*': ['.jpeg', '.png', '.jpg', '.webp'] },
+    multiple: false,
+  });
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-full overflow-y-auto flex flex-col">
-        {/* Header */}
-        <div className="flex justify-between items-center p-4 border-b border-slate-200 sticky top-0 bg-white">
-          <div>
-            <h2 className="text-xl font-bold text-slate-800">{t('gallery_title')}</h2>
-            <p className="text-sm text-slate-500">{t('gallery_description')}</p>
-          </div>
-          <button onClick={onClose} className="p-1 rounded-full hover:bg-slate-200 transition-colors">
-            <CloseIcon className="w-6 h-6 text-slate-600" />
-          </button>
+    <div className="bg-white p-6 sm:p-8 rounded-lg shadow-lg border border-slate-200 w-full max-w-4xl mx-auto">
+      <div className="text-center mb-6">
+        <h2 className="text-2xl font-bold text-slate-800">{t('image_selector_title')}</h2>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* Upload Section */}
+        <div className="flex flex-col gap-2">
+            <h3 className="font-semibold text-slate-700 text-center">{t('image_selector_upload_title')}</h3>
+            <div
+                {...getRootProps()}
+                className={`border-2 border-dashed border-slate-300 rounded-lg p-6 text-center cursor-pointer transition-colors h-full flex flex-col justify-center items-center hover:border-cyan-500 ${
+                isDragActive ? 'bg-slate-100 border-cyan-500' : 'bg-slate-50'
+                }`}
+            >
+                <input {...getInputProps()} />
+                <div className="flex flex-col items-center gap-2 text-slate-500">
+                    <UploadIcon className="w-10 h-10 mb-2" />
+                    <p className="font-semibold">{t('upload_image_placeholder')}</p>
+                </div>
+            </div>
         </div>
-        {/* Grid */}
-        <div className="p-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {galleryItems.map((item) => (
-              <div key={item.id} className="aspect-square bg-slate-100 rounded-md overflow-hidden shadow-sm">
-                <img src={item.src} alt={item.alt} className="w-full h-full object-cover transition-transform duration-300 hover:scale-105" />
-              </div>
-            ))}
-          </div>
+
+        {/* Gallery Section */}
+        <div className="flex flex-col gap-2">
+            <h3 className="font-semibold text-slate-700 text-center">{t('image_selector_gallery_title')}</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {galleryItems.map((item) => (
+                    <div 
+                        key={item.id} 
+                        className="aspect-square bg-slate-100 rounded-md overflow-hidden shadow-sm cursor-pointer group"
+                        onClick={() => onImageSelected(item.src)}
+                    >
+                        <img 
+                            src={item.src} 
+                            alt={item.alt} 
+                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" 
+                        />
+                    </div>
+                ))}
+            </div>
         </div>
       </div>
     </div>
   );
 };
 
-export default GalleryPanel;
+export default ImageSelector;
